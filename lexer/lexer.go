@@ -10,7 +10,7 @@ type Lexer struct {
 }
 
 func (l *Lexer) NextToken() token.Token {
-	var tok token.Token
+	var t token.Token
 
 	l.skipWhitespace()
 
@@ -18,65 +18,65 @@ func (l *Lexer) NextToken() token.Token {
 	case '=':
 		if l.peekChar() == '=' {
 			l.readChar()
-			tok = token.Token{Type: token.EQ, Literal: "=="}
+			t = token.Token{Type: token.EQ, Literal: "=="}
 		} else {
-			tok = newToken(token.ASSIGN, l.ch)
+			t = newToken(token.ASSIGN, l.ch)
 		}
 	case ';':
-		tok = newToken(token.SEMICOLON, l.ch)
+		t = newToken(token.SEMICOLON, l.ch)
 	case '(':
-		tok = newToken(token.LPAREN, l.ch)
+		t = newToken(token.LPAREN, l.ch)
 	case ')':
-		tok = newToken(token.RPAREN, l.ch)
+		t = newToken(token.RPAREN, l.ch)
 	case ',':
-		tok = newToken(token.COMMA, l.ch)
+		t = newToken(token.COMMA, l.ch)
 	case '+':
-		tok = newToken(token.PLUS, l.ch)
+		t = newToken(token.PLUS, l.ch)
 	case '-':
-		tok = newToken(token.MINUS, l.ch)
+		t = newToken(token.MINUS, l.ch)
 	case '!':
 		if l.peekChar() == '=' {
 			l.readChar()
-			tok = token.Token{Type: token.NOT_EQ, Literal: "!="}
+			t = token.Token{Type: token.NOT_EQ, Literal: "!="}
 		} else {
-			tok = newToken(token.BANG, l.ch)
+			t = newToken(token.BANG, l.ch)
 		}
 	case '/':
-		tok = newToken(token.SLASH, l.ch)
+		t = newToken(token.SLASH, l.ch)
 	case '*':
-		tok = newToken(token.ASTERISK, l.ch)
+		t = newToken(token.ASTERISK, l.ch)
 	case '<':
-		tok = newToken(token.LT, l.ch)
+		t = newToken(token.LT, l.ch)
 	case '>':
-		tok = newToken(token.GT, l.ch)
+		t = newToken(token.GT, l.ch)
 	case '{':
-		tok = newToken(token.LBRACE, l.ch)
+		t = newToken(token.LBRACE, l.ch)
 	case '}':
-		tok = newToken(token.RBRACE, l.ch)
+		t = newToken(token.RBRACE, l.ch)
 		// tok = token.Token{Type: token.RBRACE, Literal: string(l.ch)}
 	case 0:
-		tok.Literal = ""
-		tok.Type = token.EOF
+		t.Literal = ""
+		t.Type = token.EOF
 	default:
 		if isLetter(l.ch) {
-			tok.Literal = l.readIdentifier()
-			tok.Type = token.LookupIdent(tok.Literal)
+			t.Literal = l.readIdentifier()
+			t.Type = token.LookupIdent(t.Literal)
 			// early return as we don't need to call readChar after switch
 			// statement again (readItentifier advanced our readPos past the
 			// last character of the current identifier)
-			return tok
+			return t
 		} else if isDigit(l.ch) {
-			tok.Type = token.INT
-			tok.Literal = l.readNumber()
+			t.Type = token.INT
+			t.Literal = l.readNumber()
 			// early return as we don't need to call readChar after switch
-			return tok
+			return t
 		} else {
-			tok = newToken(token.ILLEGAL, l.ch)
+			t = newToken(token.ILLEGAL, l.ch)
 		}
 	}
 
 	l.readChar()
-	return tok
+	return t
 }
 
 func (l *Lexer) skipWhitespace() {
