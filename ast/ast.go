@@ -25,7 +25,9 @@ type Identifier struct {
 	Value string
 }
 
-func (i *Identifier) String() string { return i.Value }
+func (i *Identifier) expressionNode()      {}
+func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
+func (i *Identifier) String() string       { return i.Value }
 
 type Program struct {
 	Statements []Statement
@@ -34,9 +36,8 @@ type Program struct {
 func (p *Program) TokenLiteral() string {
 	if len(p.Statements) > 0 {
 		return p.Statements[0].TokenLiteral()
-	} else {
-		return ""
 	}
+	return ""
 }
 
 func (p *Program) String() string {
@@ -67,9 +68,6 @@ func (ls *LetStatement) String() string {
 	out.WriteString(";")
 	return out.String()
 }
-
-func (i *Identifier) expressionNode()      {}
-func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
 
 type ReturnStatement struct {
 	Token       token.Token
@@ -103,3 +101,12 @@ func (es *ExpressionStatement) String() string {
 	}
 	return ""
 }
+
+type IntegerLiteral struct {
+	Token token.Token
+	Value int64
+}
+
+func (il *IntegerLiteral) expressionNode()      {}
+func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
+func (il *IntegerLiteral) String() string       { return il.Token.Literal }
