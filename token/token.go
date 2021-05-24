@@ -12,10 +12,12 @@ const (
 	EOF     = "EOF"
 
 	// Identifiers + literals
+
 	IDENT = "IDENT" // add, foobar, x, y, ...
 	INT   = "INT"
 
 	// Operators
+
 	ASSIGN   = "="
 	PLUS     = "+"
 	MINUS    = "-"
@@ -29,6 +31,7 @@ const (
 	NOT_EQ = "!="
 
 	// Delimiters
+
 	COMMA     = ","
 	SEMICOLON = ";"
 	LPAREN    = "("
@@ -37,6 +40,7 @@ const (
 	RBRACE    = "}"
 
 	// Keywords
+
 	FUNCTION = "FUNCTION"
 	LET      = "LET"
 	TRUE     = "TRUE"
