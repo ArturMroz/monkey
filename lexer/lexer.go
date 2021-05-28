@@ -9,6 +9,12 @@ type Lexer struct {
 	ch      byte
 }
 
+func New(input string) *Lexer {
+	l := &Lexer{input: input}
+	l.readChar()
+	return l
+}
+
 func (l *Lexer) NextToken() token.Token {
 	var t token.Token
 
@@ -53,7 +59,7 @@ func (l *Lexer) NextToken() token.Token {
 		t = newToken(token.LBRACE, l.ch)
 	case '}':
 		t = newToken(token.RBRACE, l.ch)
-		// tok = token.Token{Type: token.RBRACE, Literal: string(l.ch)}
+		// t = token.Token{Type: token.RBRACE, Literal: string(l.ch)}
 	case 0:
 		t.Literal = ""
 		t.Type = token.EOF
@@ -103,6 +109,7 @@ func (l *Lexer) peekChar() byte {
 		return l.input[l.readPos]
 	}
 }
+
 func (l *Lexer) readIdentifier() string {
 	pos := l.pos
 	for isLetter(l.ch) {
@@ -129,10 +136,4 @@ func isDigit(ch byte) bool {
 
 func newToken(tokenType token.Type, ch byte) token.Token {
 	return token.Token{Type: tokenType, Literal: string(ch)}
-}
-
-func New(input string) *Lexer {
-	l := &Lexer{input: input}
-	l.readChar()
-	return l
 }

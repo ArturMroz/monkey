@@ -58,6 +58,8 @@ func New(l *lexer.Lexer) *Parser {
 		token.INT:   p.parseIntegerLiteral,
 		token.BANG:  p.parsePrefixExpression,
 		token.MINUS: p.parsePrefixExpression,
+		token.TRUE:  p.parseBoolean,
+		token.FALSE: p.parseBoolean,
 	}
 
 	p.infixParseFns = map[token.Type]infixParseFn{
@@ -71,12 +73,6 @@ func New(l *lexer.Lexer) *Parser {
 		token.GT:       p.parseInfixExpression,
 	}
 
-	// p.prefixParseFns = map[token.Type]prefixParseFn{}
-	// p.registerPrefix(token.IDENT, p.parseIdentifier)
-	// p.registerPrefix(token.INT, p.parseIntegerLiteral)
-	// p.registerPrefix(token.BANG, p.parsePrefixExpression)
-	// p.registerPrefix(token.MINUS, p.parsePrefixExpression)
-
 	return p
 }
 
@@ -86,7 +82,6 @@ func (p *Parser) Errors() []string {
 
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
-	program.Statements = []ast.Statement{}
 
 	for p.curToken.Type != token.EOF {
 		s := p.parseStatement()
@@ -191,17 +186,19 @@ func (p *Parser) expectPeek(t token.Type) bool {
 	return false
 }
 
-func (p *Parser) registerPrefix(tokenType token.Type, fn prefixParseFn) {
-	p.prefixParseFns[tokenType] = fn
-}
+// func (p *Parser) registerPrefix(tokenType token.Type, fn prefixParseFn) {
+// 	p.prefixParseFns[tokenType] = fn
+// }
 
-func (p *Parser) registerInfix(tokenType token.Type, fn infixParseFn) {
-	p.infixParseFns[tokenType] = fn
-}
+// func (p *Parser) registerInfix(tokenType token.Type, fn infixParseFn) {
+// 	p.infixParseFns[tokenType] = fn
+// }
 
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
-	stmt := &ast.ExpressionStatement{Token: p.curToken}
-	stmt.Expression = p.parseExpression(LOWEST)
+	stmt := &ast.ExpressionStatement{
+		Token:      p.curToken,
+		Expression: p.parseExpression(LOWEST),
+	}
 
 	if p.peekToken.Type == token.SEMICOLON {
 		p.nextToken()
@@ -252,4 +249,11 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	p.nextToken()
 	expression.Right = p.parseExpression(precedence)
 	return expression
+}
+
+func (p *Parser) parseBoolean() ast.Expression {
+	return &ast.Boolean{
+		Token: p.curToken,
+		Value: p.curToken.Type == token.TRUE,
+	}
 }
