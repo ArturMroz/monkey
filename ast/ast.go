@@ -175,6 +175,51 @@ func (ie *IfExpression) String() string {
 	return out.String()
 }
 
+type FunctionLiteral struct {
+	Token  token.Token // 'fn' token
+	Params []*Identifier
+	Body   *BlockStatement
+}
+
+func (fl *FunctionLiteral) expressionNode()      {}
+func (fl *FunctionLiteral) TokenLiteral() string { return fl.Token.Literal }
+func (fl *FunctionLiteral) String() string {
+	var out bytes.Buffer
+	out.WriteString(fl.TokenLiteral())
+	out.WriteString("(")
+	for i, p := range fl.Params {
+		out.WriteString(p.String())
+		if i < len(fl.Params)-1 {
+			out.WriteString(", ")
+		}
+	}
+	out.WriteString(")")
+	out.WriteString(fl.Body.String())
+	return out.String()
+}
+
+type CallExpression struct {
+	Token     token.Token // '(' token
+	Function  Expression  // Identifier or FunctionLiteral
+	Arguments []Expression
+}
+
+func (ce *CallExpression) expressionNode()      {}
+func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
+func (ce *CallExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString(ce.Function.TokenLiteral())
+	out.WriteString("(")
+	for i, v := range ce.Arguments {
+		out.WriteString(v.String())
+		if i < len(ce.Arguments)-1 {
+			out.WriteString(", ")
+		}
+	}
+	out.WriteString(")")
+	return out.String()
+}
+
 type BlockStatement struct {
 	Token      token.Token
 	Statements []Statement
@@ -184,8 +229,10 @@ func (bs *BlockStatement) statementNode()       {}
 func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
 func (bs *BlockStatement) String() string {
 	var out bytes.Buffer
+	out.WriteString("{")
 	for _, s := range bs.Statements {
 		out.WriteString(s.String())
 	}
+	out.WriteString("}")
 	return out.String()
 }
