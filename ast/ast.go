@@ -135,13 +135,6 @@ func (ie *InfixExpression) expressionNode()      {}
 func (ie *InfixExpression) TokenLiteral() string { return ie.Token.Literal }
 func (ie *InfixExpression) String() string {
 	return fmt.Sprintf("(%s %s %s)", ie.Left, ie.Operator, ie.Right)
-	// var out bytes.Buffer
-	// out.WriteString("(")
-	// out.WriteString(ie.Left.String())
-	// out.WriteString(" " + ie.Operator + " ")
-	// out.WriteString(ie.Right.String())
-	// out.WriteString(")")
-	// return out.String()
 }
 
 type Boolean struct {
