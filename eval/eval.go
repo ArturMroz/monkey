@@ -13,6 +13,23 @@ var (
 	FALSE = &object.Boolean{Value: false}
 )
 
+var builtins = map[string]*object.Builtin{
+	"len": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1", len(args))
+			}
+			switch arg := args[0].(type) {
+			case *object.String:
+				return &object.Integer{Value: int64(len(arg.Value))}
+			default:
+				return newError("argument to `len` not supported, got %s",
+					args[0].Type())
+			}
+		},
+	},
+}
+
 func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
 	case *ast.Program:
@@ -28,6 +45,9 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.Identifier:
 		if val, ok := env.Get(node.Value); ok {
 			return val
+		}
+		if builtin, ok := builtins[node.Value]; ok {
+			return builtin
 		}
 		return newError("identifier not found: " + node.Value)
 
@@ -203,24 +223,26 @@ func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Obje
 	}
 }
 
-func applyFunction(function object.Object, args []object.Object) object.Object {
-	fn, ok := function.(*object.Function)
-	if !ok {
+func applyFunction(fn object.Object, args []object.Object) object.Object {
+	switch fn := fn.(type) {
+	case *object.Function:
+		extendedEnv := object.NewEnclosedEnvironment(fn.Env)
+		for i := range fn.Params {
+			extendedEnv.Set(fn.Params[i].Value, args[i])
+		}
+		evaluated := Eval(fn.Body, extendedEnv)
+		if returnValue, ok := evaluated.(*object.ReturnValue); ok {
+			// unwrap ReturnValue so it doesn't bubble up the chain
+			return returnValue.Value
+		}
+		return evaluated
+
+	case *object.Builtin:
+		return fn.Fn(args...)
+
+	default:
 		return newError("not a function: %s", fn.Type())
 	}
-
-	extendedEnv := object.NewEnclosedEnvironment(fn.Env)
-	for i := range fn.Params {
-		extendedEnv.Set(fn.Params[i].Value, args[i])
-	}
-
-	evaluated := Eval(fn.Body, extendedEnv)
-	if returnValue, ok := evaluated.(*object.ReturnValue); ok {
-		// unwrap ReturnValue so it doesn't bubble up the chain
-		return returnValue.Value
-	}
-
-	return evaluated
 }
 
 func newError(format string, a ...interface{}) *object.Error {
