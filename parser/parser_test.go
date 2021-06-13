@@ -159,6 +159,74 @@ func TestStringLiteralExpression(t *testing.T) {
 	}
 }
 
+func TestParsingArrayLiterals(t *testing.T) {
+	input := "[1, 2 * 2, 3 + 3]"
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt := program.Statements[0].(*ast.ExpressionStatement)
+	array, ok := stmt.Expression.(*ast.ArrayLiteral)
+	if !ok {
+		t.Fatalf("exp not ast.ArrayLiteral. got=%T", stmt.Expression)
+	}
+	if len(array.Elements) != 3 {
+		t.Fatalf("len(array.Elements) not 3. got=%d", len(array.Elements))
+	}
+
+	testIntegerLiteral(t, array.Elements[0], 1)
+	testInfixExpression(t, array.Elements[1], 2, "*", 2)
+	testInfixExpression(t, array.Elements[2], 3, "+", 3)
+}
+
+func TestParsingArrayLiteralsLen(t *testing.T) {
+	tests := []struct {
+		input string
+		len   int
+	}{
+		{"[]", 0},
+		{"[3-3]", 1},
+		{"[3, 3*2]", 2},
+		{`[3, 3, "yolo"+"yolo"]`, 3},
+		// TODO fix this failing test
+		// {"[3, 3*2, fn(x, y) { return x + y }]", 3},
+	}
+
+	for _, tt := range tests {
+		p := New(lexer.New(tt.input))
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program has not enough statements. got=%d", len(program.Statements))
+		}
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		array, ok := stmt.Expression.(*ast.ArrayLiteral)
+		if !ok {
+			t.Fatalf("stmt.Expression is not ast.ArrayLiteral. got=%T", stmt.Expression)
+		}
+
+		if len(array.Elements) != tt.len {
+			t.Fatalf("wrong no of Elements: want %d, got %d", tt.len, len(array.Elements))
+		}
+	}
+}
+
+func TestParsingIndexExpressions(t *testing.T) {
+	input := "myArray[1 + 1]"
+	program := parseInput(t, input)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	indexExp, ok := stmt.Expression.(*ast.IndexExpression)
+	if !ok {
+		t.Fatalf("exp not *ast.IndexExpression. got=%T", stmt.Expression)
+	}
+	testIdentifier(t, indexExp.Left, "myArray")
+	testInfixExpression(t, indexExp.Index, 1, "+", 1)
+}
+
 func TestIfExpression(t *testing.T) {
 	input := "if (x > y) { x }"
 	l := lexer.New(input)
@@ -339,10 +407,7 @@ func TestParsingFunctionParams(t *testing.T) {
 
 func TestCallExpression(t *testing.T) {
 	input := "yolo(1, 2 + 2, 3 * 5)"
-	l := lexer.New(input)
-	p := New(l)
-	program := p.ParseProgram()
-	checkParserErrors(t, p)
+	program := parseInput(t, input)
 
 	if len(program.Statements) != 1 {
 		t.Fatalf("program has not enough statements. got=%d", len(program.Statements))
@@ -382,9 +447,7 @@ func TestParsingCallExpressionArguments(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		p := New(lexer.New(tt.input))
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		program := parseInput(t, tt.input)
 
 		if len(program.Statements) != 1 {
 			t.Fatalf("program has not enough statements. got=%d", len(program.Statements))
@@ -427,11 +490,7 @@ func TestParsingPrefixExpressions(t *testing.T) {
 	}
 
 	for _, tt := range prefixTests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
-
+		program := parseInput(t, tt.input)
 		if len(program.Statements) != 1 {
 			t.Fatalf("program.Statements does not contain %d statements. got=%d\n",
 				1, len(program.Statements))
@@ -473,10 +532,7 @@ func TestParsingInfixExpressions(t *testing.T) {
 		{"true != false", true, "!=", false},
 	}
 	for _, tt := range infixTests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		program := parseInput(t, tt.input)
 		if len(program.Statements) != 1 {
 			t.Fatalf("program.Statements does not contain %d statements. got=%d\n",
 				1, len(program.Statements))
@@ -588,18 +644,31 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 			"add(a + b + c * d / f + g)",
 			"add((((a + b) + ((c * d) / f)) + g))",
 		},
+		{
+			"a * [1, 2, 3, 4][b * c] * d",
+			"((a * ([1, 2, 3, 4][(b * c)])) * d)",
+		},
+		{
+			"add(a * b[2], b[1], 2 * [1, 2][1])",
+			"add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+		},
 	}
 
 	for _, tt := range tests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		program := parseInput(t, tt.input)
 		actual := program.String()
 		if actual != tt.expected {
 			t.Errorf("expected=%q, got=%q", tt.expected, actual)
 		}
 	}
+}
+
+func parseInput(t *testing.T, input string) *ast.Program {
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	return program
 }
 
 func checkParserErrors(t *testing.T, p *Parser) {

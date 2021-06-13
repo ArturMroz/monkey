@@ -69,6 +69,13 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 		return applyFunction(fn, args)
 
+	case *ast.ArrayLiteral:
+		elts := evalExpressions(node.Elements, env)
+		if len(elts) == 1 && isError(elts[0]) {
+			return elts[0]
+		}
+		return &object.Array{Elements: elts}
+
 	case *ast.BlockStatement:
 		var result object.Object
 		for _, statement := range node.Statements {

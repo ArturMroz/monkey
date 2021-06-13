@@ -18,6 +18,7 @@ const (
 	PRODUCT     // *
 	PREFIX      // -X or !X
 	CALL        // myFunction(X)
+	INDEX       // array[index]
 )
 
 type Parser struct {
@@ -45,6 +46,7 @@ var precedences = map[token.Type]int{
 	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
 	token.LPAREN:   CALL,
+	token.LBRACKET: INDEX,
 }
 
 func New(l *lexer.Lexer) *Parser {
@@ -56,11 +58,12 @@ func New(l *lexer.Lexer) *Parser {
 
 	p.prefixParseFns = map[token.Type]prefixParseFn{
 		token.IDENT:    p.parseIdentifier,
-		token.INT:      p.parseIntegerLiteral,
-		token.STRING:   p.parseStringLiteral,
 		token.TRUE:     p.parseBoolean,
 		token.FALSE:    p.parseBoolean,
+		token.INT:      p.parseIntegerLiteral,
+		token.STRING:   p.parseStringLiteral,
 		token.FUNCTION: p.parseFunctionLiteral,
+		token.LBRACKET: p.parseArrayLiteral,
 		token.BANG:     p.parsePrefixExpression,
 		token.MINUS:    p.parsePrefixExpression,
 		token.LPAREN:   p.parseGroupedExpression,
@@ -77,6 +80,7 @@ func New(l *lexer.Lexer) *Parser {
 		token.LT:       p.parseInfixExpression,
 		token.GT:       p.parseInfixExpression,
 		token.LPAREN:   p.parseCallExpression,
+		token.LBRACKET: p.parseIndexExpression,
 	}
 
 	return p
@@ -286,27 +290,63 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	return exp
 }
 
-func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
-	exp := &ast.CallExpression{
-		Token:    p.curToken,
-		Function: function,
-	}
+func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+	exp := &ast.IndexExpression{Token: p.curToken, Left: left}
 
 	p.nextToken()
-
-	for p.curToken.Type != token.RPAREN {
-		arg := p.parseExpression(LOWEST)
-		exp.Arguments = append(exp.Arguments, arg)
-
-		p.nextToken()
-
-		// TODO handle invalid syntax gracefully
-		if p.curToken.Type == token.COMMA {
-			p.nextToken()
-		}
+	exp.Index = p.parseExpression(LOWEST)
+	if !p.expectPeek(token.RBRACKET) {
+		return nil
 	}
 
 	return exp
+}
+
+func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
+	return &ast.CallExpression{
+		Token:     p.curToken,
+		Function:  function,
+		Arguments: p.parseExpList(token.RPAREN),
+	}
+
+	// p.nextToken()
+
+	// for p.curToken.Type != token.RPAREN {
+	// 	arg := p.parseExpression(LOWEST)
+	// 	exp.Arguments = append(exp.Arguments, arg)
+
+	// 	p.nextToken()
+
+	// 	// TODO handle invalid syntax gracefully
+	// 	if p.curToken.Type == token.COMMA {
+	// 		p.nextToken()
+	// 	}
+	// }
+
+	// return exp
+}
+
+func (p *Parser) parseExpList(end token.Type) []ast.Expression {
+	list := []ast.Expression{}
+
+	p.nextToken()
+
+	for p.curToken.Type != end {
+		element := p.parseExpression(LOWEST)
+		list = append(list, element)
+
+		p.nextToken()
+
+		if p.curToken.Type == token.COMMA {
+			p.nextToken()
+		}
+		// TODO handle invalid syntax gracefully
+		// if !p.expectPeek(token.COMMA) {
+		// 	return nil
+		// }
+	}
+
+	return list
 }
 
 func (p *Parser) parseIfExpression() ast.Expression {
@@ -381,4 +421,51 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 
 	fl.Body = p.parseBlockStatement()
 	return fl
+}
+
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	return &ast.ArrayLiteral{
+		Token:    p.curToken,
+		Elements: p.parseExpressionList(token.RBRACKET),
+	}
+
+	// // return al
+
+	// p.nextToken()
+
+	// for p.curToken.Type != token.RBRACKET {
+	// 	element := p.parseExpression(LOWEST)
+	// 	al.Elements = append(al.Elements, element)
+
+	// 	p.nextToken()
+
+	// 	if !p.expectPeek(token.COMMA) {
+	// 		return nil
+	// 	}
+	// 	// if p.curToken.Type == token.COMMA {
+	// 	// 	p.nextToken()
+	// 	// }
+	// }
+
+	// return al
+}
+
+func (p *Parser) parseExpressionList(end token.Type) []ast.Expression {
+	list := []ast.Expression{}
+	if p.peekToken.Type == end {
+		p.nextToken()
+		return list
+	}
+
+	p.nextToken()
+	list = append(list, p.parseExpression(LOWEST))
+	for p.peekToken.Type == token.COMMA {
+		p.nextToken()
+		p.nextToken()
+		list = append(list, p.parseExpression(LOWEST))
+	}
+	if !p.expectPeek(end) {
+		return nil
+	}
+	return list
 }
