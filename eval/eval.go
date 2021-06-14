@@ -20,12 +20,79 @@ var builtins = map[string]*object.Builtin{
 				return newError("wrong number of arguments. got=%d, want=1", len(args))
 			}
 			switch arg := args[0].(type) {
+			case *object.Array:
+				return &object.Integer{Value: int64(len(arg.Elements))}
 			case *object.String:
 				return &object.Integer{Value: int64(len(arg.Value))}
 			default:
 				return newError("argument to `len` not supported, got %s",
 					args[0].Type())
 			}
+		},
+	},
+	"first": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1", len(args))
+			}
+			arr, ok := args[0].(*object.Array)
+			if !ok {
+				return newError("argument to `first` must be ARRAY, got %s", args[0].Type())
+			}
+			if len(arr.Elements) > 0 {
+				return arr.Elements[0]
+			}
+			return NULL
+		},
+	},
+	"last": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1", len(args))
+			}
+			arr, ok := args[0].(*object.Array)
+			if !ok {
+				return newError("argument to `last` must be ARRAY, got %s", args[0].Type())
+			}
+			if len(arr.Elements) > 0 {
+				return arr.Elements[len(arr.Elements)-1]
+			}
+			return NULL
+		},
+	},
+	"rest": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1", len(args))
+			}
+			arr, ok := args[0].(*object.Array)
+			if !ok {
+				return newError("argument to `rest` must be ARRAY, got %s", args[0].Type())
+			}
+			length := len(arr.Elements)
+			if length > 0 {
+				newElements := make([]object.Object, 0, length-1)
+				copy(newElements, arr.Elements[1:length])
+				return &object.Array{Elements: newElements}
+			}
+			return NULL
+		},
+	},
+	"push": {
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 2 {
+				return newError("wrong number of arguments. got=%d, want=2", len(args))
+			}
+			arr, ok := args[0].(*object.Array)
+			if !ok {
+				return newError("argument to `push` must be ARRAY, got %s", args[0].Type())
+			}
+
+			length := len(arr.Elements)
+			newElements := make([]object.Object, 0, length+1)
+			copy(newElements, arr.Elements)
+			newElements = append(newElements, args[1])
+			return &object.Array{Elements: newElements}
 		},
 	},
 }
@@ -116,6 +183,28 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return right
 		}
 		return evalInfixExpression(node.Operator, left, right)
+
+	case *ast.IndexExpression:
+		left := Eval(node.Left, env)
+		if isError(left) {
+			return left
+		}
+		index := Eval(node.Index, env)
+		if isError(index) {
+			return index
+		}
+		switch {
+		case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
+			arrayObject := left.(*object.Array)
+			idx := index.(*object.Integer).Value
+			max := int64(len(arrayObject.Elements) - 1)
+			if idx < 0 || idx > max {
+				return NULL
+			}
+			return arrayObject.Elements[idx]
+		default:
+			return newError("index operator not supported: %s", left.Type())
+		}
 
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}

@@ -308,22 +308,13 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 		Function:  function,
 		Arguments: p.parseExpList(token.RPAREN),
 	}
+}
 
-	// p.nextToken()
-
-	// for p.curToken.Type != token.RPAREN {
-	// 	arg := p.parseExpression(LOWEST)
-	// 	exp.Arguments = append(exp.Arguments, arg)
-
-	// 	p.nextToken()
-
-	// 	// TODO handle invalid syntax gracefully
-	// 	if p.curToken.Type == token.COMMA {
-	// 		p.nextToken()
-	// 	}
-	// }
-
-	// return exp
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	return &ast.ArrayLiteral{
+		Token:    p.curToken,
+		Elements: p.parseExpList(token.RBRACKET),
+	}
 }
 
 func (p *Parser) parseExpList(end token.Type) []ast.Expression {
@@ -421,51 +412,4 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 
 	fl.Body = p.parseBlockStatement()
 	return fl
-}
-
-func (p *Parser) parseArrayLiteral() ast.Expression {
-	return &ast.ArrayLiteral{
-		Token:    p.curToken,
-		Elements: p.parseExpressionList(token.RBRACKET),
-	}
-
-	// // return al
-
-	// p.nextToken()
-
-	// for p.curToken.Type != token.RBRACKET {
-	// 	element := p.parseExpression(LOWEST)
-	// 	al.Elements = append(al.Elements, element)
-
-	// 	p.nextToken()
-
-	// 	if !p.expectPeek(token.COMMA) {
-	// 		return nil
-	// 	}
-	// 	// if p.curToken.Type == token.COMMA {
-	// 	// 	p.nextToken()
-	// 	// }
-	// }
-
-	// return al
-}
-
-func (p *Parser) parseExpressionList(end token.Type) []ast.Expression {
-	list := []ast.Expression{}
-	if p.peekToken.Type == end {
-		p.nextToken()
-		return list
-	}
-
-	p.nextToken()
-	list = append(list, p.parseExpression(LOWEST))
-	for p.peekToken.Type == token.COMMA {
-		p.nextToken()
-		p.nextToken()
-		list = append(list, p.parseExpression(LOWEST))
-	}
-	if !p.expectPeek(end) {
-		return nil
-	}
-	return list
 }
