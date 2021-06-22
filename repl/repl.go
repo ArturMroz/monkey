@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"io"
 
-	"monkey/eval"
+	"monkey/compiler"
 	"monkey/lexer"
-	"monkey/object"
 	"monkey/parser"
+	"monkey/vm"
 )
 
 const PROMPT = ">>> "
 
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
-	env := object.NewEnvironment()
+	// env := object.NewEnvironment()
 
 	for {
 		fmt.Fprintf(out, PROMPT)
@@ -29,6 +29,7 @@ func Start(in io.Reader, out io.Writer) {
 		program := p.ParseProgram()
 
 		if len(p.Errors()) != 0 {
+			io.WriteString(out, "Parsing failed. Errors:\n")
 			for _, v := range p.Errors() {
 				io.WriteString(out, v)
 				io.WriteString(out, "\n")
@@ -36,11 +37,28 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
-		// io.WriteString(out, program.String())
-		evaluated := eval.Eval(program, env)
-		if evaluated != nil {
-			io.WriteString(out, evaluated.Inspect())
-			io.WriteString(out, "\n")
+		comp := compiler.New()
+		err := comp.Compile(program)
+		if err != nil {
+			fmt.Fprintf(out, "Compilation failed:\n %s\n", err)
+			continue
 		}
+
+		machine := vm.New(comp.Bytecode())
+		err = machine.Run()
+		if err != nil {
+			fmt.Fprintf(out, "Executing bytecode failed:\n %s\n", err)
+			continue
+		}
+
+		stackTop := machine.StackTop()
+		io.WriteString(out, stackTop.Inspect())
+		io.WriteString(out, "\n")
+
+		// evaluated := eval.Eval(program, env)
+		// if evaluated != nil {
+		// 	io.WriteString(out, evaluated.Inspect())
+		// 	io.WriteString(out, "\n")
+		// }
 	}
 }

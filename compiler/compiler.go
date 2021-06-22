@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"monkey/ast"
 	"monkey/code"
 	"monkey/object"
@@ -12,6 +13,7 @@ type Compiler struct {
 }
 
 func New() *Compiler {
+	// TODO remove contructor if it continues to be this useless
 	return &Compiler{
 		instructions: code.Instructions{},
 		constants:    []object.Object{},
@@ -42,6 +44,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 		err = c.Compile(node.Right)
 		if err != nil {
 			return err
+		}
+		switch node.Operator {
+		case "+":
+			c.emit(code.OpAdd)
+		default:
+			return fmt.Errorf("unknown operator %s", node.Operator)
 		}
 
 	case *ast.IntegerLiteral:
