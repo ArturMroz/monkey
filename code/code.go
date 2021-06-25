@@ -18,12 +18,22 @@ const (
 	OpConstant Opcode = iota
 	OpAdd
 	OpPop
+	OpSub
+	OpMul
+	OpDiv
+	OpTrue
+	OpFalse
 )
 
 var definitions = map[Opcode]*Definition{
 	OpConstant: {"OpConstant", []int{2}},
 	OpAdd:      {"OpAdd", []int{}},
 	OpPop:      {"OpPop", []int{}},
+	OpSub:      {"OpSub", []int{}},
+	OpMul:      {"OpMul", []int{}},
+	OpDiv:      {"OpDiv", []int{}},
+	OpTrue:     {"OpTrue", []int{}},
+	OpFalse:    {"OpFalse", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
@@ -54,7 +64,7 @@ func Make(op Opcode, operands ...int) []byte {
 		switch width {
 		case 2:
 			// binary.BigEndian.PutUint16(instruction[offset:], uint16(v))
-			// bigendian encoding
+			// big endian
 			instruction[offset] = byte(v >> 8)
 			instruction[offset+1] = byte(v)
 		}
