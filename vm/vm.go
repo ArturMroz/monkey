@@ -47,6 +47,32 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpEqual, code.OpNotEqual, code.OpGreaterThan:
+			right := vm.pop()
+			left := vm.pop()
+			if left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ {
+				leftValue := left.(*object.Integer).Value
+				rightValue := right.(*object.Integer).Value
+				switch op {
+				case code.OpEqual:
+					return vm.push(nativeBoolToBooleanObject(rightValue == leftValue))
+				case code.OpNotEqual:
+					return vm.push(nativeBoolToBooleanObject(rightValue != leftValue))
+				case code.OpGreaterThan:
+					return vm.push(nativeBoolToBooleanObject(leftValue > rightValue))
+				default:
+					return fmt.Errorf("unknown operator: %d", op)
+				}
+			}
+			switch op {
+			case code.OpEqual:
+				return vm.push(nativeBoolToBooleanObject(right == left))
+			case code.OpNotEqual:
+				return vm.push(nativeBoolToBooleanObject(right != left))
+			default:
+				return fmt.Errorf("unknown operator: %d (%s %s)", op, left.Type(), right.Type())
+			}
+
 		case code.OpPop:
 			vm.pop()
 
@@ -120,4 +146,11 @@ func (vm *VM) pop() object.Object {
 	o := vm.stack[vm.sp-1]
 	vm.sp--
 	return o
+}
+
+func nativeBoolToBooleanObject(input bool) *object.Boolean {
+	if input {
+		return True
+	}
+	return False
 }
