@@ -8,16 +8,20 @@ import (
 )
 
 type Compiler struct {
-	instructions code.Instructions
-	constants    []object.Object
+	instructions        code.Instructions
+	constants           []object.Object
+	lastInstruction     EmittedInstruction
+	previousInstruction EmittedInstruction
+}
+
+type EmittedInstruction struct {
+	Opcode   code.Opcode
+	Position int
 }
 
 func New() *Compiler {
 	// TODO remove contructor if it continues to be this useless
-	return &Compiler{
-		instructions: code.Instructions{},
-		constants:    []object.Object{},
-	}
+	return &Compiler{}
 }
 
 func (c *Compiler) Compile(node ast.Node) error {
@@ -79,6 +83,75 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return fmt.Errorf("unknown operator %s", node.Operator)
 		}
 
+	case *ast.PrefixExpression:
+		err := c.Compile(node.Right)
+		if err != nil {
+			return err
+		}
+
+		switch node.Operator {
+		case "!":
+			c.emit(code.OpBang)
+		case "-":
+			c.emit(code.OpMinus)
+		default:
+			return fmt.Errorf("unknown operator %s", node.Operator)
+		}
+
+	case *ast.IfExpression:
+		err := c.Compile(node.Condition)
+		if err != nil {
+			return err
+		}
+
+		// emit an `OpJumpNotTruthy` with a bogus value
+		jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 9999)
+
+		err = c.Compile(node.Consequence)
+		if err != nil {
+			return err
+		}
+
+		// remove last OpPop so the block statement evaluates
+		if c.lastInstruction.Opcode == code.OpPop {
+			// TODO could just cut the last elem, don't need Position?
+			c.instructions = c.instructions[:c.lastInstruction.Position]
+			c.lastInstruction = c.previousInstruction
+		}
+
+		if node.Alternative == nil {
+			afterConsequencePos := len(c.instructions)
+			c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
+		} else {
+			// Emit an `OpJump` with a bogus value
+			jumpPos := c.emit(code.OpJump, 9999)
+
+			afterConsequencePos := len(c.instructions)
+			c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
+
+			err := c.Compile(node.Alternative)
+			if err != nil {
+				return err
+			}
+
+			// remove last OpPop so the block statement evaluates
+			if c.lastInstruction.Opcode == code.OpPop {
+				c.instructions = c.instructions[:c.lastInstruction.Position]
+				c.lastInstruction = c.previousInstruction
+			}
+
+			afterAlternativePos := len(c.instructions)
+			c.changeOperand(jumpPos, afterAlternativePos)
+		}
+
+	case *ast.BlockStatement:
+		for _, s := range node.Statements {
+			err := c.Compile(s)
+			if err != nil {
+				return err
+			}
+		}
+
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
@@ -102,6 +175,15 @@ func (c *Compiler) addConstant(obj object.Object) int {
 func (c *Compiler) emit(op code.Opcode, operands ...int) int {
 	ins := code.Make(op, operands...)
 	pos := c.addInstruction(ins)
+
+	c.previousInstruction = c.lastInstruction
+	c.lastInstruction = EmittedInstruction{Opcode: op, Position: pos}
+
+	// previous := c.lastInstruction
+	// last := EmittedInstruction{Opcode: op, Position: pos}
+	// c.previousInstruction = previous
+	// c.lastInstruction = last
+
 	return pos
 }
 
@@ -109,6 +191,16 @@ func (c *Compiler) addInstruction(ins []byte) int {
 	posNewInstruction := len(c.instructions)
 	c.instructions = append(c.instructions, ins...)
 	return posNewInstruction
+}
+
+func (c *Compiler) changeOperand(pos int, operand int) {
+	op := code.Opcode(c.instructions[pos])
+	newInstruction := code.Make(op, operand)
+
+	// replace instruction
+	for i := 0; i < len(newInstruction); i++ {
+		c.instructions[pos+i] = newInstruction[i]
+	}
 }
 
 func (c *Compiler) Bytecode() *Bytecode {
