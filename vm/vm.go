@@ -12,6 +12,7 @@ const StackSize = 1024
 var (
 	True  = &object.Boolean{Value: true}
 	False = &object.Boolean{Value: false}
+	Null  = &object.Null{}
 )
 
 type VM struct {
@@ -79,6 +80,20 @@ func (vm *VM) Run() error {
 		case code.OpPop:
 			vm.pop()
 
+		case code.OpJump:
+			pos := int(code.ReadUint16(vm.instructions[ip+1:]))
+			// as ip is increased with each loop, we need to offset it
+			ip = pos - 1
+
+		case code.OpJumpNotTruthy:
+			pos := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+
+			condition := vm.pop()
+			if !isTruthy(condition) {
+				ip = pos - 1
+			}
+
 		case code.OpTrue:
 			err := vm.push(True)
 			if err != nil {
@@ -90,6 +105,13 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+
+		case code.OpNull:
+			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
+
 		}
 	}
 
@@ -99,12 +121,10 @@ func (vm *VM) Run() error {
 func (vm *VM) executeComparison(op code.Opcode) error {
 	right := vm.pop()
 	left := vm.pop()
-	fmt.Printf("left %q right %q", left, right)
 
 	if left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ {
 		leftValue := left.(*object.Integer).Value
 		rightValue := right.(*object.Integer).Value
-		fmt.Printf("integers: left %d right %d\n", leftValue, rightValue)
 
 		switch op {
 		case code.OpEqual:
@@ -112,12 +132,12 @@ func (vm *VM) executeComparison(op code.Opcode) error {
 		case code.OpNotEqual:
 			return vm.push(nativeBoolToBooleanObject(rightValue != leftValue))
 		case code.OpGreaterThan:
-			fmt.Printf("greater than: left %d right %d", leftValue, rightValue)
 			return vm.push(nativeBoolToBooleanObject(leftValue > rightValue))
 		default:
 			return fmt.Errorf("unknown operator: %d", op)
 		}
 	}
+
 	switch op {
 	case code.OpEqual:
 		return vm.push(nativeBoolToBooleanObject(right == left))
@@ -164,6 +184,8 @@ func (vm *VM) executeBangOperator() error {
 		return vm.push(False)
 	case False:
 		return vm.push(True)
+	case Null:
+		return vm.push(True)
 	default:
 		return vm.push(False)
 	}
@@ -202,4 +224,17 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 		return True
 	}
 	return False
+}
+
+func isTruthy(obj object.Object) bool {
+	switch obj := obj.(type) {
+	case *object.Boolean:
+		return obj.Value
+
+	case *object.Null:
+		return false
+
+	default:
+		return true
+	}
 }

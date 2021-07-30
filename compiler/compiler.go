@@ -112,37 +112,33 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 
-		// remove last OpPop so the block statement evaluates
+		// remove last OpPop so the block statement evaluates to something
 		if c.lastInstruction.Opcode == code.OpPop {
-			// TODO could just cut the last elem, don't need Position?
-			c.instructions = c.instructions[:c.lastInstruction.Position]
-			c.lastInstruction = c.previousInstruction
+			c.removeLastInstruction()
 		}
 
+		// emit an `OpJump` with a bogus value
+		jumpPos := c.emit(code.OpJump, 9999)
+
+		afterConsequencePos := len(c.instructions)
+		c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
+
 		if node.Alternative == nil {
-			afterConsequencePos := len(c.instructions)
-			c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
+			c.emit(code.OpNull)
 		} else {
-			// Emit an `OpJump` with a bogus value
-			jumpPos := c.emit(code.OpJump, 9999)
-
-			afterConsequencePos := len(c.instructions)
-			c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
-
 			err := c.Compile(node.Alternative)
 			if err != nil {
 				return err
 			}
 
-			// remove last OpPop so the block statement evaluates
+			// remove last OpPop so the block statement evaluates to something
 			if c.lastInstruction.Opcode == code.OpPop {
-				c.instructions = c.instructions[:c.lastInstruction.Position]
-				c.lastInstruction = c.previousInstruction
+				c.removeLastInstruction()
 			}
-
-			afterAlternativePos := len(c.instructions)
-			c.changeOperand(jumpPos, afterAlternativePos)
 		}
+
+		afterAlternativePos := len(c.instructions)
+		c.changeOperand(jumpPos, afterAlternativePos)
 
 	case *ast.BlockStatement:
 		for _, s := range node.Statements {
@@ -179,11 +175,6 @@ func (c *Compiler) emit(op code.Opcode, operands ...int) int {
 	c.previousInstruction = c.lastInstruction
 	c.lastInstruction = EmittedInstruction{Opcode: op, Position: pos}
 
-	// previous := c.lastInstruction
-	// last := EmittedInstruction{Opcode: op, Position: pos}
-	// c.previousInstruction = previous
-	// c.lastInstruction = last
-
 	return pos
 }
 
@@ -193,11 +184,16 @@ func (c *Compiler) addInstruction(ins []byte) int {
 	return posNewInstruction
 }
 
+func (c *Compiler) removeLastInstruction() {
+	c.instructions = c.instructions[:c.lastInstruction.Position]
+	c.lastInstruction = c.previousInstruction
+}
+
 func (c *Compiler) changeOperand(pos int, operand int) {
 	op := code.Opcode(c.instructions[pos])
 	newInstruction := code.Make(op, operand)
 
-	// replace instruction
+	// replace instruction; this assumes instructions are of the same length
 	for i := 0; i < len(newInstruction); i++ {
 		c.instructions[pos+i] = newInstruction[i]
 	}
