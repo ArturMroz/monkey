@@ -7,7 +7,10 @@ import (
 	"monkey/object"
 )
 
-const StackSize = 1024
+const (
+	StackSize   = 1024
+	GlobalsSize = 65536
+)
 
 var (
 	True  = &object.Boolean{Value: true}
@@ -16,19 +19,26 @@ var (
 )
 
 type VM struct {
-	constants    []object.Object
-	instructions code.Instructions
-	stack        [StackSize]object.Object
+	stack        []object.Object
 	sp           int // Always points to the next value. Top of stack is stack[sp-1]
+	instructions code.Instructions
+	constants    []object.Object
+	globals      []object.Object
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
 	return &VM{
+		stack:        make([]object.Object, StackSize),
 		instructions: bytecode.Instructions,
 		constants:    bytecode.Constants,
-		stack:        [StackSize]object.Object{},
-		sp:           0,
+		globals:      make([]object.Object, GlobalsSize),
 	}
+}
+
+func NewWithGlobalsStore(bytecode *compiler.Bytecode, globals []object.Object) *VM {
+	vm := New(bytecode)
+	vm.globals = globals
+	return vm
 }
 
 func (vm *VM) StackTop() object.Object {
@@ -49,6 +59,19 @@ func (vm *VM) Run() error {
 			constIndex := code.ReadUint16(vm.instructions[ip+1:])
 			ip += 2
 			err := vm.push(vm.constants[constIndex])
+			if err != nil {
+				return err
+			}
+
+		case code.OpSetGlobal:
+			globalIdx := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+			vm.globals[globalIdx] = vm.pop()
+
+		case code.OpGetGlobal:
+			globalIdx := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+			err := vm.push(vm.globals[globalIdx])
 			if err != nil {
 				return err
 			}
