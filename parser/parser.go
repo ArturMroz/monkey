@@ -109,14 +109,13 @@ func (p *Parser) nextToken() {
 	p.peekToken = p.l.NextToken()
 }
 
-func (p *Parser) expectPeek(t token.Type) bool {
-	if p.peekToken.Type == t {
-		// TODO move nextToken outside of expectPeek?
+func (p *Parser) expectPeek(typ token.Type) bool {
+	if p.peekToken.Type == typ {
 		p.nextToken()
 		return true
 	}
 
-	msg := fmt.Sprintf("expected next token to be %s, got %s", t, p.peekToken.Type)
+	msg := fmt.Sprintf("expected next token to be %s, got %s", typ, p.peekToken.Type)
 	p.errors = append(p.errors, msg)
 	return false
 }

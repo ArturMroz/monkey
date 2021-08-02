@@ -175,6 +175,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
 
+	case *ast.StringLiteral:
+		str := &object.String{Value: node.Value}
+		c.emit(code.OpConstant, c.addConstant(str))
+
 	case *ast.Boolean:
 		if node.Value {
 			c.emit(code.OpTrue)
@@ -186,11 +190,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 	return nil
 }
 
-func (c *Compiler) addConstant(obj object.Object) int {
-	c.constants = append(c.constants, obj)
-	return len(c.constants) - 1
-}
-
 func (c *Compiler) emit(op code.Opcode, operands ...int) int {
 	ins := code.Make(op, operands...)
 	pos := c.addInstruction(ins)
@@ -199,6 +198,11 @@ func (c *Compiler) emit(op code.Opcode, operands ...int) int {
 	c.lastInstruction = EmittedInstruction{Opcode: op, Position: pos}
 
 	return pos
+}
+
+func (c *Compiler) addConstant(obj object.Object) int {
+	c.constants = append(c.constants, obj)
+	return len(c.constants) - 1
 }
 
 func (c *Compiler) addInstruction(ins []byte) int {
