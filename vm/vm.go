@@ -118,20 +118,34 @@ func (vm *VM) Run() error {
 			}
 
 		case code.OpTrue:
-			err := vm.push(True)
-			if err != nil {
+			if err := vm.push(True); err != nil {
 				return err
 			}
 
 		case code.OpFalse:
-			err := vm.push(False)
-			if err != nil {
+			if err := vm.push(False); err != nil {
 				return err
 			}
 
 		case code.OpNull:
-			err := vm.push(Null)
-			if err != nil {
+			if err := vm.push(Null); err != nil {
+				return err
+			}
+
+		case code.OpArray:
+			numElements := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+
+			start, end := vm.sp-numElements, vm.sp
+			elems := make([]object.Object, end-start)
+			for i := start; i < end; i++ {
+				elems[i-start] = vm.stack[i]
+			}
+			array := &object.Array{Elements: elems}
+
+			vm.sp -= numElements
+
+			if err := vm.push(array); err != nil {
 				return err
 			}
 
