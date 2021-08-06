@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"monkey/ast"
 	"monkey/code"
 	"monkey/lexer"
 	"monkey/object"
@@ -337,32 +336,71 @@ func TestArrayLiterals(t *testing.T) {
 	runCompilerTests(t, tests)
 }
 
+func TestHashLiterals(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input:             "{}",
+			expectedConstants: []interface{}{},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpHash, 0),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             "{1: 2, 3: 4, 5: 6}",
+			expectedConstants: []interface{}{1, 2, 3, 4, 5, 6},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpConstant, 3),
+				code.Make(code.OpConstant, 4),
+				code.Make(code.OpConstant, 5),
+				code.Make(code.OpHash, 6),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             "{1: 2 + 3, 4: 5 * 6}",
+			expectedConstants: []interface{}{1, 2, 3, 4, 5, 6},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpAdd),
+				code.Make(code.OpConstant, 3),
+				code.Make(code.OpConstant, 4),
+				code.Make(code.OpConstant, 5),
+				code.Make(code.OpMul),
+				code.Make(code.OpHash, 4),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}
+
 func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
 	for _, tt := range tests {
-		program := parse(tt.input)
+		l := lexer.New(tt.input)
+		p := parser.New(l)
+		program := p.ParseProgram()
 		compiler := New()
-		err := compiler.Compile(program)
-		if err != nil {
+
+		if err := compiler.Compile(program); err != nil {
 			t.Fatalf("compiler error: %s", err)
 		}
 
 		bytecode := compiler.Bytecode()
-		err = testInstructions(tt.expectedInstructions, bytecode.Instructions)
-		if err != nil {
+
+		if err := testInstructions(tt.expectedInstructions, bytecode.Instructions); err != nil {
 			t.Fatalf("testInstructions failed: %s", err)
 		}
-		err = testConstants(t, tt.expectedConstants, bytecode.Constants)
-		if err != nil {
+		if err := testConstants(t, tt.expectedConstants, bytecode.Constants); err != nil {
 			t.Fatalf("testConstants failed: %s", err)
 		}
 	}
-}
-
-func parse(input string) *ast.Program {
-	l := lexer.New(input)
-	p := parser.New(l)
-	return p.ParseProgram()
 }
 
 func testInstructions(expected []code.Instructions, actual code.Instructions) error {

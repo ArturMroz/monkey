@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	"monkey/compiler"
 	"monkey/lexer"
 	"monkey/object"
@@ -113,6 +114,29 @@ func TestArrayLiterals(t *testing.T) {
 	runVmTests(t, tests)
 }
 
+func TestHashLiterals(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			"{}", map[object.HashKey]int64{},
+		},
+		{
+			"{1: 2, 2: 3}",
+			map[object.HashKey]int64{
+				(&object.Integer{Value: 1}).HashKey(): 2,
+				(&object.Integer{Value: 2}).HashKey(): 3,
+			},
+		},
+		{
+			"{1 + 1: 2 * 2, 3 + 3: 4 * 4}",
+			map[object.HashKey]int64{
+				(&object.Integer{Value: 2}).HashKey(): 4,
+				(&object.Integer{Value: 6}).HashKey(): 16,
+			},
+		},
+	}
+	runVmTests(t, tests)
+}
+
 func runVmTests(t *testing.T, tests []vmTestCase) {
 	t.Helper()
 	for _, tt := range tests {
@@ -121,14 +145,13 @@ func runVmTests(t *testing.T, tests []vmTestCase) {
 		program := p.ParseProgram()
 		comp := compiler.New()
 
-		err := comp.Compile(program)
-		if err != nil {
+		if err := comp.Compile(program); err != nil {
 			t.Fatalf("compiler error: %s", err)
 		}
 
 		vm := New(comp.Bytecode())
-		err = vm.Run()
-		if err != nil {
+
+		if err := vm.Run(); err != nil {
 			t.Fatalf("vm error: %s", err)
 		}
 
@@ -141,13 +164,8 @@ func testExpectedObject(t *testing.T, expected interface{}, actual object.Object
 	t.Helper()
 	switch expected := expected.(type) {
 	case int:
-		result, ok := actual.(*object.Integer)
-		if !ok {
-			t.Errorf("object is not Integer. got=%T (%+v)", actual, actual)
-			return
-		}
-		if result.Value != int64(expected) {
-			t.Errorf("object has wrong value. got=%d, want=%d", result.Value, expected)
+		if err := testIntegerObject(int64(expected), actual); err != nil {
+			t.Errorf("testIntegerObject failed: %s", err)
 		}
 
 	case bool:
@@ -181,20 +199,29 @@ func testExpectedObject(t *testing.T, expected interface{}, actual object.Object
 			return
 		}
 		for i, expectedElem := range expected {
-			actualElem := array.Elements[i]
-			result, ok := actualElem.(*object.Integer)
-			if !ok {
-				t.Errorf("object is not Integer. got=%T (%+v)", actualElem, actualElem)
-				return
+			if err := testIntegerObject(int64(expectedElem), array.Elements[i]); err != nil {
+				t.Errorf("testIntegerObject failed: %s", err)
 			}
-			if result.Value != int64(expectedElem) {
-				t.Errorf("object has wrong value. got=%d, want=%d", result.Value, expectedElem)
-			}
+		}
 
-			// err := testIntegerObject(int64(expectedElem), array.Elements[i])
-			// if err != nil {
-			// 	t.Errorf("testIntegerObject failed: %s", err)
-			// }
+	case map[object.HashKey]int64:
+		hash, ok := actual.(*object.Hash)
+		if !ok {
+			t.Errorf("object is not Hash. got=%T (%+v)", actual, actual)
+			return
+		}
+		if len(hash.Pairs) != len(expected) {
+			t.Errorf("hash has wrong number of Pairs. want=%d, got=%d", len(expected), len(hash.Pairs))
+			return
+		}
+		for expectedKey, expectedValue := range expected {
+			pair, ok := hash.Pairs[expectedKey]
+			if !ok {
+				t.Errorf("no pair for given key in Pairs")
+			}
+			if err := testIntegerObject(expectedValue, pair.Value); err != nil {
+				t.Errorf("testIntegerObject failed: %s", err)
+			}
 		}
 
 	case *object.Null:
@@ -202,4 +229,15 @@ func testExpectedObject(t *testing.T, expected interface{}, actual object.Object
 			t.Errorf("object is not Null: %T (%+v)", actual, actual)
 		}
 	}
+}
+
+func testIntegerObject(expected int64, actual object.Object) error {
+	result, ok := actual.(*object.Integer)
+	if !ok {
+		return fmt.Errorf("object is not Integer. got=%T (%+v)", actual, actual)
+	}
+	if result.Value != int64(expected) {
+		return fmt.Errorf("object has wrong value. got=%d, want=%d", result.Value, expected)
+	}
+	return nil
 }

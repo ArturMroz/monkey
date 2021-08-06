@@ -138,9 +138,7 @@ func (vm *VM) Run() error {
 
 			start, end := vm.sp-numElements, vm.sp
 			elems := make([]object.Object, end-start)
-			for i := start; i < end; i++ {
-				elems[i-start] = vm.stack[i]
-			}
+			copy(elems, vm.stack[start:end])
 			array := &object.Array{Elements: elems}
 
 			vm.sp -= numElements
@@ -149,10 +147,42 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpHash:
+			numElements := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+
+			hash, err := vm.buildHash(vm.sp-numElements, vm.sp)
+			if err != nil {
+				return err
+			}
+
+			vm.sp -= numElements
+
+			if err := vm.push(hash); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
+}
+
+func (vm *VM) buildHash(start, end int) (*object.Hash, error) {
+	hashedPairs := map[object.HashKey]object.HashPair{}
+	for i := start; i < end; i += 2 {
+		key := vm.stack[i]
+		value := vm.stack[i+1]
+		pair := object.HashPair{Key: key, Value: value}
+
+		hashKey, ok := key.(object.Hashable)
+		if !ok {
+			return nil, fmt.Errorf("unusable as hash key: %s", key.Type())
+		}
+
+		hashedPairs[hashKey.HashKey()] = pair
+	}
+
+	return &object.Hash{Pairs: hashedPairs}, nil
 }
 
 func (vm *VM) executeComparison(op code.Opcode) error {
