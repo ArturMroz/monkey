@@ -40,6 +40,9 @@ const (
 	OpSetGlobal
 	OpGetGlobal
 
+	OpSetLocal
+	OpGetLocal
+
 	OpArray
 	OpHash
 	OpIndex
@@ -68,6 +71,8 @@ var definitions = map[Opcode]*Definition{
 	OpJump:          {"OpJump", []int{2}},
 	OpSetGlobal:     {"OpSetGlobal", []int{2}},
 	OpGetGlobal:     {"OpGetGlobal", []int{2}},
+	OpSetLocal:      {"OpSetLocal", []int{1}},
+	OpGetLocal:      {"OpGetLocal", []int{1}},
 	OpArray:         {"OpArray", []int{2}},
 	OpHash:          {"OpHash", []int{2}},
 	OpIndex:         {"OpEqual", []int{}},
@@ -102,6 +107,8 @@ func Make(op Opcode, operands ...int) []byte {
 	for i, v := range operands {
 		width := def.OperandWidths[i]
 		switch width {
+		case 1:
+			instruction[offset] = byte(v)
 		case 2:
 			// big endian
 			instruction[offset] = byte(v >> 8)
@@ -117,16 +124,23 @@ func ReadOperands(def *Definition, ins Instructions) (operands []int, offset int
 	operands = make([]int, len(def.OperandWidths))
 	for i, width := range def.OperandWidths {
 		switch width {
+		case 1:
+			operands[i] = int(ReadUint8(ins[offset:]))
 		case 2:
 			operands[i] = int(ReadUint16(ins[offset:]))
 		}
 		offset += width
 	}
+
 	return operands, offset
 }
 
 func ReadUint16(ins Instructions) uint16 {
 	return uint16(ins[1]) | uint16(ins[0])<<8 // big endian
+}
+
+func ReadUint8(ins Instructions) uint8 {
+	return uint8(ins[0])
 }
 
 func (ins Instructions) String() string {
