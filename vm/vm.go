@@ -30,7 +30,7 @@ type VM struct {
 
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions}
-	mainFrame := NewFrame(mainFn)
+	mainFrame := NewFrame(mainFn, 0)
 	frames := make([]*Frame, MaxFrames)
 	frames[0] = mainFrame
 
@@ -92,6 +92,21 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpSetLocal:
+			localIndex := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
+
+			vm.stack[vm.currentFrame().basePtr+int(localIndex)] = vm.pop()
+
+		case code.OpGetLocal:
+			localIndex := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
+
+			err := vm.push(vm.stack[vm.currentFrame().basePtr+int(localIndex)])
+			if err != nil {
+				return err
+			}
+
 		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
@@ -138,13 +153,16 @@ func (vm *VM) Run() error {
 			if !ok {
 				return fmt.Errorf("calling non-function")
 			}
-			frame := NewFrame(fn)
+			frame := NewFrame(fn, vm.sp)
+			// allocate a 'hole' on the stack to store local variables
+			vm.sp += fn.NumLocals
 			vm.pushFrame(frame)
 
 		case code.OpReturnValue:
 			returnValue := vm.pop()
-			vm.popFrame()
-			vm.pop()
+
+			frame := vm.popFrame()
+			vm.sp = frame.basePtr - 1
 
 			err := vm.push(returnValue)
 			if err != nil {
@@ -152,8 +170,8 @@ func (vm *VM) Run() error {
 			}
 
 		case code.OpReturn:
-			vm.popFrame()
-			vm.pop()
+			frame := vm.popFrame()
+			vm.sp = frame.basePtr - 1
 
 			err := vm.push(Null)
 			if err != nil {
