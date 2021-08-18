@@ -64,16 +64,16 @@ func (vm *VM) Run() error {
 	var ip int
 	var ins code.Instructions
 
-	for vm.currentFrame().ip < len(vm.currentFrame().Instructions())-1 {
-		vm.currentFrame().ip++
+	for vm.curFrame().ip < len(vm.curFrame().Instructions())-1 {
+		vm.curFrame().ip++
 
-		ip = vm.currentFrame().ip
-		ins = vm.currentFrame().Instructions()
+		ip = vm.curFrame().ip
+		ins = vm.curFrame().Instructions()
 
 		switch op := code.Opcode(ins[ip]); op {
 		case code.OpConstant:
 			constIndex := code.ReadUint16(ins[ip+1:])
-			vm.currentFrame().ip += 2
+			vm.curFrame().ip += 2
 			err := vm.push(vm.constants[constIndex])
 			if err != nil {
 				return err
@@ -81,12 +81,12 @@ func (vm *VM) Run() error {
 
 		case code.OpSetGlobal:
 			globalIdx := code.ReadUint16(ins[ip+1:])
-			vm.currentFrame().ip += 2
+			vm.curFrame().ip += 2
 			vm.globals[globalIdx] = vm.pop()
 
 		case code.OpGetGlobal:
 			globalIdx := code.ReadUint16(ins[ip+1:])
-			vm.currentFrame().ip += 2
+			vm.curFrame().ip += 2
 			err := vm.push(vm.globals[globalIdx])
 			if err != nil {
 				return err
@@ -94,15 +94,15 @@ func (vm *VM) Run() error {
 
 		case code.OpSetLocal:
 			localIndex := code.ReadUint8(ins[ip+1:])
-			vm.currentFrame().ip += 1
+			vm.curFrame().ip += 1
 
-			vm.stack[vm.currentFrame().basePtr+int(localIndex)] = vm.pop()
+			vm.stack[vm.curFrame().basePtr+int(localIndex)] = vm.pop()
 
 		case code.OpGetLocal:
 			localIndex := code.ReadUint8(ins[ip+1:])
-			vm.currentFrame().ip += 1
+			vm.curFrame().ip += 1
 
-			err := vm.push(vm.stack[vm.currentFrame().basePtr+int(localIndex)])
+			err := vm.push(vm.stack[vm.curFrame().basePtr+int(localIndex)])
 			if err != nil {
 				return err
 			}
@@ -137,24 +137,27 @@ func (vm *VM) Run() error {
 		case code.OpJump:
 			pos := int(code.ReadUint16(ins[ip+1:]))
 			// as ip is increased with each loop, we need to offset it
-			vm.currentFrame().ip = pos - 1
+			vm.curFrame().ip = pos - 1
 
 		case code.OpJumpNotTruthy:
 			pos := int(code.ReadUint16(ins[ip+1:]))
-			vm.currentFrame().ip += 2
+			vm.curFrame().ip += 2
 
 			condition := vm.pop()
 			if !isTruthy(condition) {
-				vm.currentFrame().ip = pos - 1
+				vm.curFrame().ip = pos - 1
 			}
 
 		case code.OpCall:
+			vm.curFrame().ip += 1
+
 			fn, ok := vm.stack[vm.sp-1].(*object.CompiledFunction)
 			if !ok {
 				return fmt.Errorf("calling non-function")
 			}
+
 			frame := NewFrame(fn, vm.sp)
-			// allocate a 'hole' on the stack to store local variables
+			// allocate a hole on the stack to store local variables
 			vm.sp += fn.NumLocals
 			vm.pushFrame(frame)
 
@@ -195,7 +198,7 @@ func (vm *VM) Run() error {
 
 		case code.OpArray:
 			numElements := int(code.ReadUint16(ins[ip+1:]))
-			vm.currentFrame().ip += 2
+			vm.curFrame().ip += 2
 
 			start, end := vm.sp-numElements, vm.sp
 			elems := make([]object.Object, end-start)
@@ -210,7 +213,7 @@ func (vm *VM) Run() error {
 
 		case code.OpHash:
 			numElements := int(code.ReadUint16(ins[ip+1:]))
-			vm.currentFrame().ip += 2
+			vm.curFrame().ip += 2
 
 			hash, err := vm.buildHash(vm.sp-numElements, vm.sp)
 			if err != nil {
@@ -400,7 +403,7 @@ func (vm *VM) pop() object.Object {
 	return o
 }
 
-func (vm *VM) currentFrame() *Frame {
+func (vm *VM) curFrame() *Frame {
 	return vm.frames[vm.framesIndex-1]
 }
 
