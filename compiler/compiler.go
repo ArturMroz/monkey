@@ -2,10 +2,11 @@ package compiler
 
 import (
 	"fmt"
+	"sort"
+
 	"monkey/ast"
 	"monkey/code"
 	"monkey/object"
-	"sort"
 )
 
 type Compiler struct {
@@ -27,8 +28,13 @@ type EmittedInstruction struct {
 }
 
 func New() *Compiler {
+	symbolTable := NewSymbolTable()
+	for i, v := range object.Builtins {
+		symbolTable.DefineBuiltin(i, v.Name)
+	}
+
 	return &Compiler{
-		symbolTable: &SymbolTable{store: map[string]Symbol{}},
+		symbolTable: symbolTable,
 		scopes:      []CompilationScope{{}},
 	}
 }
@@ -64,15 +70,18 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 	case *ast.Identifier:
-		symbol, ok := c.symbolTable.Resolve(node.Value)
+		sym, ok := c.symbolTable.Resolve(node.Value)
 		if !ok {
 			return fmt.Errorf("undefined variable %s", node.Value)
 		}
 
-		if symbol.Scope == GlobalScope {
-			c.emit(code.OpGetGlobal, symbol.Index)
-		} else {
-			c.emit(code.OpGetLocal, symbol.Index)
+		switch sym.Scope {
+		case GlobalScope:
+			c.emit(code.OpGetGlobal, sym.Index)
+		case LocalScope:
+			c.emit(code.OpGetLocal, sym.Index)
+		case BuiltinScope:
+			c.emit(code.OpGetBuiltin, sym.Index)
 		}
 
 	case *ast.ExpressionStatement:

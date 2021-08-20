@@ -703,6 +703,42 @@ manyArg(24, 25, 26);
 	runCompilerTests(t, tests)
 }
 
+func TestBuiltins(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input:             `len([]); push([], 1); `,
+			expectedConstants: []interface{}{1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpGetBuiltin, 1),
+				code.Make(code.OpArray, 0),
+				code.Make(code.OpCall, 1),
+				code.Make(code.OpPop),
+				code.Make(code.OpGetBuiltin, 5),
+				code.Make(code.OpArray, 0),
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpCall, 2),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: `fn() { len([]) }`,
+			expectedConstants: []interface{}{
+				[]code.Instructions{
+					code.Make(code.OpGetBuiltin, 1),
+					code.Make(code.OpArray, 0),
+					code.Make(code.OpCall, 1),
+					code.Make(code.OpReturnValue),
+				},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}
+
 func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
 	for _, tt := range tests {
@@ -732,11 +768,11 @@ func testInstructions(expected []code.Instructions, actual code.Instructions) er
 		concatted = append(concatted, ins...)
 	}
 	if len(actual) != len(concatted) {
-		return fmt.Errorf("wrong instructions length.\nwant=%q\ngot =%q", concatted, actual)
+		return fmt.Errorf("wrong instructions length.\nwant= %q\ngot = %q", concatted, actual)
 	}
 	for i, ins := range concatted {
 		if actual[i] != ins {
-			return fmt.Errorf("wrong instruction at %d.\nwant=%q\ngot =%q", i, concatted, actual)
+			return fmt.Errorf("wrong instruction at %d.\nwant= %q\ngot = %q", i, concatted, actual)
 		}
 	}
 	return nil

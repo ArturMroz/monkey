@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+
 	"monkey/code"
 	"monkey/compiler"
 	"monkey/object"
@@ -152,19 +153,31 @@ func (vm *VM) Run() error {
 			numArgs := int(code.ReadUint8(ins[ip+1:]))
 			vm.curFrame().ip += 1
 
-			fn, ok := vm.stack[vm.sp-1-numArgs].(*object.CompiledFunction)
-			if !ok {
-				return fmt.Errorf("calling non-function")
-			}
+			fn := vm.stack[vm.sp-1-numArgs]
+			switch fn := fn.(type) {
+			case *object.CompiledFunction:
+				if numArgs != fn.NumParams {
+					return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParams, numArgs)
+				}
 
-			if numArgs != fn.NumParams {
-				return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParams, numArgs)
-			}
+				frame := NewFrame(fn, vm.sp-numArgs)
+				vm.pushFrame(frame)
+				vm.sp = frame.basePtr + fn.NumLocals
 
-			frame := NewFrame(fn, vm.sp-numArgs)
-			// allocate a hole on the stack to store local variables
-			vm.sp = frame.basePtr + fn.NumLocals
-			vm.pushFrame(frame)
+			case *object.Builtin:
+				args := vm.stack[vm.sp-numArgs : vm.sp]
+				result := fn.Fn(args...)
+				vm.sp -= numArgs + 1
+
+				if result != nil {
+					vm.push(result)
+				} else {
+					vm.push(Null)
+				}
+
+			default:
+				return fmt.Errorf("calling non-function and non-built-in")
+			}
 
 		case code.OpReturnValue:
 			returnValue := vm.pop()
@@ -182,6 +195,17 @@ func (vm *VM) Run() error {
 			vm.sp = frame.basePtr - 1
 
 			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
+
+		case code.OpGetBuiltin:
+			builtinIndex := code.ReadUint8(ins[ip+1:])
+			vm.curFrame().ip += 1
+
+			definition := object.Builtins[builtinIndex]
+
+			err := vm.push(definition.Builtin)
 			if err != nil {
 				return err
 			}

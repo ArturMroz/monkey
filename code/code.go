@@ -39,7 +39,6 @@ const (
 
 	OpSetGlobal
 	OpGetGlobal
-
 	OpSetLocal
 	OpGetLocal
 
@@ -50,6 +49,8 @@ const (
 	OpCall
 	OpReturnValue
 	OpReturn
+
+	OpGetBuiltin
 )
 
 var definitions = map[Opcode]*Definition{
@@ -79,6 +80,7 @@ var definitions = map[Opcode]*Definition{
 	OpCall:          {"OpCall", []int{1}},
 	OpReturnValue:   {"OpReturnValue", []int{}},
 	OpReturn:        {"OpReturn", []int{}},
+	OpGetBuiltin:    {"OpGetBuiltin", []int{1}},
 }
 
 func Lookup(op byte) (*Definition, error) {
@@ -104,6 +106,7 @@ func Make(op Opcode, operands ...int) []byte {
 	instruction := make([]byte, instructionLen)
 	instruction[0] = byte(op)
 	offset := 1
+
 	for i, v := range operands {
 		width := def.OperandWidths[i]
 		switch width {
