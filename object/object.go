@@ -19,7 +19,8 @@ const (
 	RETURN_VALUE_OBJ      = "RETURN_VALUE"
 	ERROR_OBJ             = "ERROR"
 	FUNCTION_OBJ          = "FUNCTION"
-	COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION_OBJ"
+	COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION"
+	CLOSURE_OBJ           = "CLOSURE"
 	BUILTIN_OBJ           = "BUILTIN"
 	ARRAY_OBJ             = "ARRAY"
 	HASH_OBJ              = "HASH"
@@ -109,6 +110,14 @@ type Builtin struct {
 
 func (b *Builtin) Type() ObjectType { return BUILTIN_OBJ }
 func (b *Builtin) Inspect() string  { return "builtin function" }
+
+type Closure struct {
+	Fn   *CompiledFunction
+	Free []Object
+}
+
+func (c *Closure) Type() ObjectType { return CLOSURE_OBJ }
+func (c *Closure) Inspect() string  { return fmt.Sprintf("Closure[%p]", c) }
 
 type Array struct {
 	Elements []Object
