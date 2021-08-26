@@ -6,6 +6,7 @@ const (
 	GlobalScope  SymbolScope = "GLOBAL"
 	LocalScope   SymbolScope = "LOCAL"
 	BuiltinScope SymbolScope = "BUILTIN"
+	FreeScope    SymbolScope = "FREE"
 )
 
 type Symbol struct {
@@ -16,12 +17,16 @@ type Symbol struct {
 
 type SymbolTable struct {
 	Outer          *SymbolTable
+	FreeSymbols    []Symbol
 	store          map[string]Symbol
 	numDefinitions int
 }
 
 func NewSymbolTable() *SymbolTable {
-	return &SymbolTable{store: map[string]Symbol{}}
+	return &SymbolTable{
+		store:       map[string]Symbol{},
+		FreeSymbols: []Symbol{},
+	}
 }
 
 func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
@@ -56,8 +61,31 @@ func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
 	obj, ok := s.store[name]
 	if !ok && s.Outer != nil {
 		obj, ok = s.Outer.Resolve(name)
-		return obj, ok
+		if !ok {
+			return obj, false
+		}
+
+		if obj.Scope == GlobalScope || obj.Scope == BuiltinScope {
+			return obj, true
+		}
+
+		free := s.defineFree(obj)
+		return free, true
 	}
 
 	return obj, ok
+}
+
+func (s *SymbolTable) defineFree(original Symbol) Symbol {
+	// TODO could just add free symbol instead of this replace dance?
+	s.FreeSymbols = append(s.FreeSymbols, original)
+
+	symbol := Symbol{
+		Name:  original.Name,
+		Index: len(s.FreeSymbols) - 1,
+		Scope: FreeScope,
+	}
+
+	s.store[original.Name] = symbol
+	return symbol
 }

@@ -75,14 +75,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return fmt.Errorf("undefined variable %s", node.Value)
 		}
 
-		switch sym.Scope {
-		case GlobalScope:
-			c.emit(code.OpGetGlobal, sym.Index)
-		case LocalScope:
-			c.emit(code.OpGetLocal, sym.Index)
-		case BuiltinScope:
-			c.emit(code.OpGetBuiltin, sym.Index)
-		}
+		c.loadSymbol(sym)
 
 	case *ast.ExpressionStatement:
 		err := c.Compile(node.Expression)
@@ -220,8 +213,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpReturn)
 		}
 
+		freeSymbols := c.symbolTable.FreeSymbols // has to be assigned before we leave the scope
 		numLocals := c.symbolTable.numDefinitions
 		instructions := c.leaveScopeAndReturnInstructions()
+
+		for _, s := range freeSymbols {
+			c.loadSymbol(s)
+		}
+
 		compiledFn := &object.CompiledFunction{
 			Instructions: instructions,
 			NumLocals:    numLocals,
@@ -229,7 +228,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		fnIndex := c.addConstant(compiledFn)
-		c.emit(code.OpClosure, fnIndex, 0)
+		c.emit(code.OpClosure, fnIndex, len(freeSymbols))
 
 	case *ast.ReturnStatement:
 		err := c.Compile(node.ReturnValue)
@@ -335,6 +334,19 @@ func (c *Compiler) removeLastInstruction() {
 	curScope := c.curScope()
 	curScope.instructions = curScope.instructions[:curScope.lastInstruction.Position]
 	curScope.lastInstruction = curScope.previousInstruction
+}
+
+func (c *Compiler) loadSymbol(s Symbol) {
+	switch s.Scope {
+	case GlobalScope:
+		c.emit(code.OpGetGlobal, s.Index)
+	case LocalScope:
+		c.emit(code.OpGetLocal, s.Index)
+	case BuiltinScope:
+		c.emit(code.OpGetBuiltin, s.Index)
+	case FreeScope:
+		c.emit(code.OpGetFree, s.Index)
+	}
 }
 
 func (c *Compiler) changeOperand(pos int, operand int) {
