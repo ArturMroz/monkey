@@ -119,6 +119,13 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpCurrentClosure:
+			curClosure := vm.curFrame().cl
+			err := vm.push(curClosure)
+			if err != nil {
+				return err
+			}
+
 		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {

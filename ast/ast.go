@@ -157,6 +157,7 @@ type FunctionLiteral struct {
 	Token  token.Token // 'fn' token
 	Params []*Identifier
 	Body   *BlockStatement
+	Name   string
 }
 
 func (fl *FunctionLiteral) expressionNode()      {}
@@ -165,6 +166,9 @@ func (fl *FunctionLiteral) String() string {
 	var out bytes.Buffer
 	out.WriteString(fl.TokenLiteral())
 	out.WriteString("(")
+	if fl.Name != "" {
+		out.WriteString(fmt.Sprintf("<%s>", fl.Name))
+	}
 	for i, p := range fl.Params {
 		out.WriteString(p.String())
 		if i < len(fl.Params)-1 {
