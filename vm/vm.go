@@ -109,6 +109,16 @@ func (vm *VM) Run() error {
 				return err
 			}
 
+		case code.OpGetFree:
+			freeIndex := code.ReadUint8(ins[ip+1:])
+			vm.curFrame().ip += 1
+			currentClosure := vm.curFrame().cl
+
+			err := vm.push(currentClosure.Free[freeIndex])
+			if err != nil {
+				return err
+			}
+
 		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
@@ -182,7 +192,7 @@ func (vm *VM) Run() error {
 
 		case code.OpClosure:
 			constIdx := code.ReadUint16(ins[ip+1:])
-			_ = code.ReadUint8(ins[ip+3:]) // TODO decode 2nd operand
+			numFree := int(code.ReadUint8(ins[ip+3:]))
 			vm.curFrame().ip += 3
 
 			constant := vm.constants[constIdx]
@@ -191,7 +201,14 @@ func (vm *VM) Run() error {
 				return fmt.Errorf("not a function: %+v", constant)
 			}
 
-			closure := &object.Closure{Fn: fn}
+			free := make([]object.Object, numFree)
+			// for i := 0; i < numFree; i++ {
+			// 	free[i] = vm.stack[vm.sp-numFree+i]
+			// }
+			copy(free, vm.stack[vm.sp-numFree:]) // copy free variables for closure from the stack
+			vm.sp -= numFree                     // clean the stack
+
+			closure := &object.Closure{Fn: fn, Free: free}
 			err := vm.push(closure)
 			if err != nil {
 				return err

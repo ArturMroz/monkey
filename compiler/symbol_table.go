@@ -36,31 +36,31 @@ func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
 	}
 }
 
-func (s *SymbolTable) Define(name string) Symbol {
-	symbol := Symbol{Name: name, Index: s.numDefinitions}
+func (st *SymbolTable) Define(name string) Symbol {
+	symbol := Symbol{Name: name, Index: st.numDefinitions}
 
-	if s.Outer == nil {
+	if st.Outer == nil {
 		symbol.Scope = GlobalScope
 	} else {
 		symbol.Scope = LocalScope
 	}
 
-	s.store[name] = symbol
-	s.numDefinitions++
+	st.store[name] = symbol
+	st.numDefinitions++
 
 	return symbol
 }
 
-func (s *SymbolTable) DefineBuiltin(index int, name string) Symbol {
+func (st *SymbolTable) DefineBuiltin(index int, name string) Symbol {
 	symbol := Symbol{Name: name, Index: index, Scope: BuiltinScope}
-	s.store[name] = symbol
+	st.store[name] = symbol
 	return symbol
 }
 
-func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
-	obj, ok := s.store[name]
-	if !ok && s.Outer != nil {
-		obj, ok = s.Outer.Resolve(name)
+func (st *SymbolTable) Resolve(name string) (Symbol, bool) {
+	obj, ok := st.store[name]
+	if !ok && st.Outer != nil {
+		obj, ok = st.Outer.Resolve(name)
 		if !ok {
 			return obj, false
 		}
@@ -69,23 +69,22 @@ func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
 			return obj, true
 		}
 
-		free := s.defineFree(obj)
+		free := st.defineFree(obj)
 		return free, true
 	}
 
 	return obj, ok
 }
 
-func (s *SymbolTable) defineFree(original Symbol) Symbol {
-	// TODO could just add free symbol instead of this replace dance?
-	s.FreeSymbols = append(s.FreeSymbols, original)
+func (st *SymbolTable) defineFree(original Symbol) Symbol {
+	st.FreeSymbols = append(st.FreeSymbols, original)
 
 	symbol := Symbol{
 		Name:  original.Name,
-		Index: len(s.FreeSymbols) - 1,
+		Index: len(st.FreeSymbols) - 1,
 		Scope: FreeScope,
 	}
 
-	s.store[original.Name] = symbol
+	st.store[original.Name] = symbol
 	return symbol
 }
