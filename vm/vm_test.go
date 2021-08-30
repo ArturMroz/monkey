@@ -603,6 +603,29 @@ wrapper();
 	runVmTests(t, tests)
 }
 
+func TestRecursiveFibonacci(t *testing.T) {
+	tests := []vmTestCase{
+		{
+			input: `
+let fibonacci = fn(x) {
+	if (x == 0) {
+		return 0;
+	} else {
+		if (x == 1) {
+			return 1;
+		} else {
+			fibonacci(x - 1) + fibonacci(x - 2);
+		}
+	}
+};
+fibonacci(15);
+`,
+			expected: 610,
+		},
+	}
+	runVmTests(t, tests)
+}
+
 func testExpectedObject(t *testing.T, expected interface{}, actual object.Object) {
 	t.Helper()
 	switch expected := expected.(type) {
@@ -683,29 +706,6 @@ func testExpectedObject(t *testing.T, expected interface{}, actual object.Object
 		}
 	}
 }
-
-// func TestRecursiveFibonacci(t *testing.T) {
-// 	tests := []vmTestCase{
-// 		{
-// 			input: `
-// let fibonacci = fn(x) {
-// 	if (x == 0) {
-// 		return 0;
-// 	} else {
-// 		if (x == 1) {
-// 			return 1;
-// 		} else {
-// 			fibonacci(x - 1) + fibonacci(x - 2);
-// 		}
-// 	}
-// };
-// fibonacci(15);
-// `,
-// 			expected: 610,
-// 		},
-// 	}
-// 	runVmTests(t, tests)
-// }
 
 func testIntegerObject(expected int64, actual object.Object) error {
 	result, ok := actual.(*object.Integer)
