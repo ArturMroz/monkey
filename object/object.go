@@ -12,18 +12,19 @@ import (
 type ObjectType string
 
 const (
-	INTEGER_OBJ           = "INTEGER"
-	BOOLEAN_OBJ           = "BOOLEAN"
-	STRING_OBJ            = "STRING"
-	NULL_OBJ              = "NULL"
-	RETURN_VALUE_OBJ      = "RETURN_VALUE"
-	ERROR_OBJ             = "ERROR"
-	FUNCTION_OBJ          = "FUNCTION"
-	COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION"
-	CLOSURE_OBJ           = "CLOSURE"
-	BUILTIN_OBJ           = "BUILTIN"
-	ARRAY_OBJ             = "ARRAY"
-	HASH_OBJ              = "HASH"
+	INTEGER_OBJ           ObjectType = "INTEGER"
+	BOOLEAN_OBJ           ObjectType = "BOOLEAN"
+	STRING_OBJ            ObjectType = "STRING"
+	NULL_OBJ              ObjectType = "NULL"
+	RETURN_VALUE_OBJ      ObjectType = "RETURN_VALUE"
+	ERROR_OBJ             ObjectType = "ERROR"
+	FUNCTION_OBJ          ObjectType = "FUNCTION"
+	COMPILED_FUNCTION_OBJ ObjectType = "COMPILED_FUNCTION"
+	CLOSURE_OBJ           ObjectType = "CLOSURE"
+	BUILTIN_OBJ           ObjectType = "BUILTIN"
+	ARRAY_OBJ             ObjectType = "ARRAY"
+	HASH_OBJ              ObjectType = "HASH"
+	QUOTE_OBJ             ObjectType = "QUOTE"
 )
 
 type Object interface {
@@ -190,3 +191,10 @@ func (h *Hash) Inspect() string {
 	out.WriteString("}")
 	return out.String()
 }
+
+type Quote struct {
+	Node ast.Node
+}
+
+func (q *Quote) Type() ObjectType { return QUOTE_OBJ }
+func (q *Quote) Inspect() string  { return "QUOTE(" + q.Node.String() + ")" }

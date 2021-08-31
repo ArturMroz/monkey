@@ -51,14 +51,21 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 
 	case *ast.CallExpression:
+		if node.Function.TokenLiteral() == "quote" {
+			// short-circruit and don't evaluate the args
+			return &object.Quote{Node: node}
+		}
+
 		fn := Eval(node.Function, env)
 		if isError(fn) {
 			return fn
 		}
+
 		args := evalExpressions(node.Arguments, env)
 		if len(args) == 1 && isError(args[0]) {
 			return args[0]
 		}
+
 		return applyFunction(fn, args)
 
 	case *ast.ArrayLiteral:
