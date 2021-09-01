@@ -53,7 +53,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.CallExpression:
 		if node.Function.TokenLiteral() == "quote" {
 			// short-circruit and don't evaluate the args
-			return &object.Quote{Node: node}
+			return quote(node.Arguments[0], env)
 		}
 
 		fn := Eval(node.Function, env)

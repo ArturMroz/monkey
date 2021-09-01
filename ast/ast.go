@@ -169,12 +169,14 @@ func (fl *FunctionLiteral) String() string {
 	if fl.Name != "" {
 		out.WriteString(fmt.Sprintf("<%s>", fl.Name))
 	}
+
 	for i, p := range fl.Params {
 		out.WriteString(p.String())
 		if i < len(fl.Params)-1 {
 			out.WriteString(", ")
 		}
 	}
+
 	out.WriteString(")")
 	out.WriteString(fl.Body.String())
 	return out.String()
