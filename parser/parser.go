@@ -63,6 +63,7 @@ func New(l *lexer.Lexer) *Parser {
 		token.INT:      p.parseIntegerLiteral,
 		token.STRING:   p.parseStringLiteral,
 		token.FUNCTION: p.parseFunctionLiteral,
+		token.MACRO:    p.parseMacroLiteral,
 		token.LBRACKET: p.parseArrayLiteral,
 		token.LBRACE:   p.parseHashLiteral,
 		token.BANG:     p.parsePrefixExpression,
@@ -417,6 +418,34 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	return exp
 }
 
+func (p *Parser) parseFunctionParameters() []*ast.Identifier {
+	identifiers := []*ast.Identifier{}
+
+	// TODO thighten this whole method up
+	if p.peekToken.Type == token.RPAREN {
+		p.nextToken()
+		return identifiers
+	}
+
+	p.nextToken()
+
+	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	identifiers = append(identifiers, ident)
+
+	for p.peekToken.Type == token.COMMA {
+		p.nextToken()
+		p.nextToken()
+		ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		identifiers = append(identifiers, ident)
+	}
+
+	if !p.expectPeek(token.RPAREN) {
+		return nil
+	}
+
+	return identifiers
+}
+
 func (p *Parser) parseFunctionLiteral() ast.Expression {
 	fl := &ast.FunctionLiteral{Token: p.curToken}
 
@@ -444,4 +473,36 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 
 	fl.Body = p.parseBlockStatement()
 	return fl
+}
+
+func (p *Parser) parseMacroLiteral() ast.Expression {
+	ml := &ast.MacroLiteral{Token: p.curToken}
+
+	if !p.expectPeek(token.LPAREN) {
+		return nil
+	}
+
+	// ml.Params = p.parseFunctionParameters()
+
+	p.nextToken()
+
+	for p.curToken.Type != token.RPAREN {
+		param := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		ml.Params = append(ml.Params, param)
+
+		p.nextToken()
+
+		// TODO: handle invalid syntax inside params
+		if p.curToken.Type == token.COMMA {
+			p.nextToken()
+		}
+	}
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+
+	ml.Body = p.parseBlockStatement()
+
+	return ml
 }

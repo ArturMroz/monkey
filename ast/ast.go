@@ -182,6 +182,32 @@ func (fl *FunctionLiteral) String() string {
 	return out.String()
 }
 
+type MacroLiteral struct {
+	Token  token.Token // The 'macro' token
+	Params []*Identifier
+	Body   *BlockStatement
+}
+
+func (ml *MacroLiteral) expressionNode()      {}
+func (ml *MacroLiteral) TokenLiteral() string { return ml.Token.Literal }
+func (ml *MacroLiteral) String() string {
+	var out bytes.Buffer
+	out.WriteString(ml.TokenLiteral())
+	out.WriteString("(")
+
+	for i, p := range ml.Params {
+		out.WriteString(p.String())
+		if i < len(ml.Params)-1 {
+			out.WriteString(", ")
+		}
+	}
+
+	out.WriteString(") ")
+	out.WriteString(ml.Body.String())
+
+	return out.String()
+}
+
 type PrefixExpression struct {
 	Token    token.Token // The prefix token, e.g. !
 	Operator string

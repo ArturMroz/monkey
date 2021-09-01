@@ -179,7 +179,6 @@ type Hash struct {
 func (h *Hash) Type() ObjectType { return HASH_OBJ }
 func (h *Hash) Inspect() string {
 	var out bytes.Buffer
-	// pairs := []string{}
 	out.WriteString("{")
 	for _, pair := range h.Pairs {
 		out.WriteString(fmt.Sprintf("%s: %s", pair.Key.Inspect(), pair.Value.Inspect()))
