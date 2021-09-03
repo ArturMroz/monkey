@@ -25,6 +25,7 @@ const (
 	ARRAY_OBJ             ObjectType = "ARRAY"
 	HASH_OBJ              ObjectType = "HASH"
 	QUOTE_OBJ             ObjectType = "QUOTE"
+	MACRO_OBJ             ObjectType = "MACRO"
 )
 
 type Object interface {
@@ -107,6 +108,30 @@ type BuiltinFunction func(args ...Object) Object
 
 type Builtin struct {
 	Fn BuiltinFunction
+}
+
+type Macro struct {
+	Params []*ast.Identifier
+	Body   *ast.BlockStatement
+	Env    *Environment
+}
+
+func (m *Macro) Type() ObjectType { return MACRO_OBJ }
+func (m *Macro) Inspect() string {
+	var out bytes.Buffer
+
+	out.WriteString("fn(")
+	for i, p := range m.Params {
+		out.WriteString(p.String())
+		if i < len(m.Params)-1 {
+			out.WriteString(", ")
+		}
+	}
+	out.WriteString(") {\n")
+	out.WriteString(m.Body.String())
+	out.WriteString("\n}")
+
+	return out.String()
 }
 
 func (b *Builtin) Type() ObjectType { return BUILTIN_OBJ }

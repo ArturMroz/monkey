@@ -418,37 +418,7 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	return exp
 }
 
-func (p *Parser) parseFunctionParameters() []*ast.Identifier {
-	identifiers := []*ast.Identifier{}
-
-	// TODO thighten this whole method up
-	if p.peekToken.Type == token.RPAREN {
-		p.nextToken()
-		return identifiers
-	}
-
-	p.nextToken()
-
-	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-	identifiers = append(identifiers, ident)
-
-	for p.peekToken.Type == token.COMMA {
-		p.nextToken()
-		p.nextToken()
-		ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-		identifiers = append(identifiers, ident)
-	}
-
-	if !p.expectPeek(token.RPAREN) {
-		return nil
-	}
-
-	return identifiers
-}
-
-func (p *Parser) parseFunctionLiteral() ast.Expression {
-	fl := &ast.FunctionLiteral{Token: p.curToken}
-
+func (p *Parser) parseFunctionParameters() (params []*ast.Identifier) {
 	if !p.expectPeek(token.LPAREN) {
 		return nil
 	}
@@ -457,7 +427,7 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 
 	for p.curToken.Type != token.RPAREN {
 		param := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-		fl.Params = append(fl.Params, param)
+		params = append(params, param)
 
 		p.nextToken()
 
@@ -466,6 +436,14 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 			p.nextToken()
 		}
 	}
+
+	return params
+}
+
+func (p *Parser) parseFunctionLiteral() ast.Expression {
+	fl := &ast.FunctionLiteral{Token: p.curToken}
+
+	fl.Params = p.parseFunctionParameters()
 
 	if !p.expectPeek(token.LBRACE) {
 		return nil
@@ -478,31 +456,12 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 func (p *Parser) parseMacroLiteral() ast.Expression {
 	ml := &ast.MacroLiteral{Token: p.curToken}
 
-	if !p.expectPeek(token.LPAREN) {
-		return nil
-	}
-
-	// ml.Params = p.parseFunctionParameters()
-
-	p.nextToken()
-
-	for p.curToken.Type != token.RPAREN {
-		param := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-		ml.Params = append(ml.Params, param)
-
-		p.nextToken()
-
-		// TODO: handle invalid syntax inside params
-		if p.curToken.Type == token.COMMA {
-			p.nextToken()
-		}
-	}
+	ml.Params = p.parseFunctionParameters()
 
 	if !p.expectPeek(token.LBRACE) {
 		return nil
 	}
 
 	ml.Body = p.parseBlockStatement()
-
 	return ml
 }
