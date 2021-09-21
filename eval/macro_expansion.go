@@ -5,16 +5,17 @@ import (
 	"monkey/object"
 )
 
+// DefineMacros finds macro definitions, constructs macro out of them
+// and adds them to Env, and finally removes the definitions from AST.
 func DefineMacros(program *ast.Program, env *object.Environment) {
-	definitions := []int{}
-
-	for i, stmt := range program.Statements {
-		letStmt, ok := stmt.(*ast.LetStatement)
+	for i := len(program.Statements) - 1; i >= 0; i-- {
+		letStmt, ok := program.Statements[i].(*ast.LetStatement)
 		if !ok {
 			continue
 		}
 		macroLit, ok := letStmt.Value.(*ast.MacroLiteral)
 		if !ok {
+			// not a macro definition, bail
 			continue
 		}
 
@@ -26,12 +27,8 @@ func DefineMacros(program *ast.Program, env *object.Environment) {
 
 		env.Set(letStmt.Name.String(), macro)
 
-		definitions = append(definitions, i)
-	}
-
-	for i := len(definitions) - 1; i >= 0; i-- {
-		defIdx := definitions[i]
-		program.Statements = append(program.Statements[:defIdx], program.Statements[defIdx+1:]...)
+		// remove found macro definition from the AST
+		program.Statements = append(program.Statements[:i], program.Statements[i+1:]...)
 	}
 }
 
@@ -54,6 +51,7 @@ func ExpandMacros(program *ast.Program, env *object.Environment) ast.Node {
 			return node
 		}
 
+		// quote args
 		args := []*object.Quote{}
 		for _, arg := range callExp.Arguments {
 			args = append(args, &object.Quote{Node: arg})

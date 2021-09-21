@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"monkey/compiler"
+	"monkey/eval"
 	"monkey/lexer"
 	"monkey/object"
 	"monkey/parser"
@@ -71,5 +72,41 @@ func Start(in io.Reader, out io.Writer) {
 		// 	io.WriteString(out, evaluated.Inspect())
 		// 	io.WriteString(out, "\n")
 		// }
+	}
+}
+
+func StartInterpreter(in io.Reader, out io.Writer) {
+	scanner := bufio.NewScanner(in)
+	env := object.NewEnvironment()
+	macroEnv := object.NewEnvironment()
+
+	for {
+		fmt.Fprintf(out, PROMPT)
+		scanned := scanner.Scan()
+		if !scanned {
+			return
+		}
+
+		line := scanner.Text()
+		l := lexer.New(line)
+		p := parser.New(l)
+
+		program := p.ParseProgram()
+		if len(p.Errors()) != 0 {
+			io.WriteString(out, "[!] Run into parser errors:\n")
+			for _, msg := range p.Errors() {
+				io.WriteString(out, "\t"+msg+"\n")
+			}
+			continue
+		}
+
+		eval.DefineMacros(program, macroEnv)
+		expanded := eval.ExpandMacros(program, macroEnv)
+
+		evaluated := eval.Eval(expanded, env)
+		if evaluated != nil {
+			io.WriteString(out, evaluated.Inspect())
+			io.WriteString(out, "\n")
+		}
 	}
 }
